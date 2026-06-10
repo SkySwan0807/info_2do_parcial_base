@@ -1,14 +1,14 @@
 # Segundo Parcial — Match-3 (Infografía, I/2026)
 
 Proyecto base para el segundo parcial. Recibes un juego **Match-3** funcional pero
-incompleto, hecho en **Godot 4.4**, y tu trabajo es convertirlo en un juego completo.
+incompleto, hecho en **Godot 4.6**, y tu trabajo es convertirlo en un juego completo.
 
 > 📋 **El enunciado completo, la rúbrica y los criterios de evaluación están en
 > [`enunciado.md`](enunciado.md). Léelo antes de empezar.**
 
 ## Cómo correr el juego
 
-1. Instala [Godot 4.4](https://godotengine.org/download).
+1. Instala [Godot 4.6](https://godotengine.org/download).
 2. Abre **esta carpeta** desde el editor de Godot (botón *Import* → selecciona el
    `project.godot`).
 3. Presiona `F5` (o el botón *Play* ▶). La escena principal es `scenes/game.tscn`.

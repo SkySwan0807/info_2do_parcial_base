@@ -1,7 +1,7 @@
 # Segundo Parcial — Match-3 (Infografía, I/2026)
 
 **Modalidad:** proyecto para casa, individual. **Plazo:** 1 a 2 semanas (la fecha exacta se publica en Moodle).
-**Motor:** Godot 4.4. **Entrega:** URL de tu repositorio (ver *Entrega* al final).
+**Motor:** Godot 4.6. **Entrega:** URL de tu repositorio (ver *Entrega* al final).
 
 ---
 
@@ -10,7 +10,7 @@
 Recibes un juego **Match-3** funcional pero incompleto. El núcleo del juego ya está
 resuelto: la grilla, el intercambio de piezas por deslizamiento, la detección de
 combinaciones de 3 o más, la destrucción, la caída por gravedad, el rellenado y la
-resolución de combos en cascada. Puedes abrir el proyecto en Godot 4.4 y jugar de
+resolución de combos en cascada. Puedes abrir el proyecto en Godot 4.6 y jugar de
 inmediato.
 
 Lo que **no** está hecho es lo que convierte ese núcleo en un juego de verdad:
@@ -40,7 +40,7 @@ tableros sin jugadas posibles. Ese es tu trabajo.
   `Adjacent`, `Rainbow`), fuente, fondo y un paquete de **sonidos** (`Match 3 Sounds.zip`,
   aún sin extraer).
 
-**Cómo ejecutarlo:** abre esta carpeta en el editor de Godot 4.4 y presiona `F5`
+**Cómo ejecutarlo:** abre esta carpeta en el editor de Godot 4.6 y presiona `F5`
 (o el botón *Play*). La escena principal es `scenes/game.tscn`.
 
 ---
@@ -137,5 +137,5 @@ que hayas usado.
    implementaste, y la lista de recursos externos consultados (con enlaces).
 4. Entrega la **URL de tu repositorio** por Moodle antes de la fecha límite.
 
-Asegúrate de que el proyecto **abra y corra en Godot 4.4 sin errores** en una
+Asegúrate de que el proyecto **abra y corra en Godot 4.6 sin errores** en una
 máquina limpia (no subas la carpeta `.godot/`).
