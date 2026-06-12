@@ -11,7 +11,7 @@ var state
 @export var y_start: int
 @export var offset: int
 @export var y_offset: int
-
+HOLA SOY OSCAR 
 # piece array
 var possible_pieces = [
 	preload("res://scenes/blue_piece.tscn"),
