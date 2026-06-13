@@ -71,8 +71,6 @@ var game_active: bool  = false
 
 var collected: int = 0   # piezas del color objetivo eliminadas
 
-
-
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	state = MOVE
@@ -118,7 +116,7 @@ func make_2d_array():
 		for j in height:
 			array[i].append(null)
 	return array
-	
+
 func grid_to_pixel(column, row):
 	var new_x = x_start + offset * column
 	var new_y = y_start - offset * row
@@ -229,46 +227,115 @@ func _process(_delta):
 		touch_input()
 
 func find_matches():
-	
-	# TODO (PARCIAL · M3): aquí es donde se decide qué piezas forman cada combinación.
-	# Para crear piezas especiales necesitas conocer el LARGO de cada línea: una de 4
-	# genera una pieza de línea (fila/columna) y una de 5 una bomba de color. El chequeo
-	# actual solo mira el "centro" de tríos; probablemente tengas que recorrer las
-	# líneas completas para distinguir combinaciones de 3, 4 y 5.
+
+	var visited = {}
 
 	for i in width:
 		for j in height:
-			if all_pieces[i][j] != null:
-				var current_color = all_pieces[i][j].color
-				# detect horizontal matches
-				if (
-					i > 0 and i < width -1 
-					and 
-					all_pieces[i - 1][j] != null and all_pieces[i + 1][j]
-					and 
-					all_pieces[i - 1][j].color == current_color and all_pieces[i + 1][j].color == current_color
-				):
-					all_pieces[i - 1][j].matched = true
-					all_pieces[i - 1][j].dim()
-					all_pieces[i][j].matched = true
-					all_pieces[i][j].dim()
-					all_pieces[i + 1][j].matched = true
-					all_pieces[i + 1][j].dim()
-				# detect vertical matches
-				if (
-					j > 0 and j < height -1 
-					and 
-					all_pieces[i][j - 1] != null and all_pieces[i][j + 1]
-					and 
-					all_pieces[i][j - 1].color == current_color and all_pieces[i][j + 1].color == current_color
-				):
-					all_pieces[i][j - 1].matched = true
-					all_pieces[i][j - 1].dim()
-					all_pieces[i][j].matched = true
-					all_pieces[i][j].dim()
-					all_pieces[i][j + 1].matched = true
-					all_pieces[i][j + 1].dim()
-					
+
+			if all_pieces[i][j] == null:
+				continue
+
+			var current_pos = Vector2i(i, j)
+
+			if visited.has(current_pos):
+				continue
+
+			var piece = all_pieces[i][j]
+
+			var horizontal = get_horizontal_positions(i, j)
+			var vertical = get_vertical_positions(i, j)
+
+			var horizontal_match = horizontal.size() >= 3
+			var vertical_match = vertical.size() >= 3
+
+			if not horizontal_match and not vertical_match:
+				continue
+
+			var match_positions = []
+
+			for pos in horizontal:
+				if not match_positions.has(pos):
+					match_positions.append(pos)
+
+			for pos in vertical:
+				if not match_positions.has(pos):
+					match_positions.append(pos)
+
+			# No procesar la misma combinación varias veces
+			var already_processed = true
+
+			for pos in match_positions:
+				if not visited.has(pos):
+					already_processed = false
+					break
+
+			if already_processed:
+				continue
+
+			for pos in match_positions:
+				visited[pos] = true
+
+			var special_type = piece.SpecialType.NONE
+
+			# ==================================
+			# ARCOIRIS (5 O MÁS EN LÍNEA)
+			# ==================================
+
+			if horizontal.size() >= 5 or vertical.size() >= 5:
+				special_type = piece.SpecialType.RAINBOW
+
+			# ==================================
+			# ADYACENTE (T, L, +)
+			# ==================================
+
+			elif horizontal.size() >= 3 and vertical.size() >= 3:
+				special_type = piece.SpecialType.ADJACENT
+
+			# ==================================
+			# FILA
+			# ==================================
+
+			elif horizontal.size() == 4:
+				special_type = piece.SpecialType.ROW
+
+			# ==================================
+			# COLUMNA
+			# ==================================
+
+			elif vertical.size() == 4:
+				special_type = piece.SpecialType.COLUMN
+
+			var special_pos = null
+
+			if special_type != piece.SpecialType.NONE:
+				special_pos = get_special_position(match_positions)
+
+			for pos in match_positions:
+
+				if special_pos != null and pos == special_pos:
+					continue
+
+				_mark_matched(pos.x, pos.y)
+
+			if special_pos != null:
+
+				var special_piece = all_pieces[special_pos.x][special_pos.y]
+
+				if special_piece != null:
+
+					special_piece.matched = false
+					special_piece.undim()
+
+					# Evita sobrescribir especiales existentes
+					if special_piece.special_type == piece.SpecialType.NONE:
+						special_piece.special_type = special_type
+
+					if special_type == piece.SpecialType.RAINBOW:
+						special_piece.color = "rainbow"
+
+					special_piece.update_sprite()
+
 	destroy_timer.start()
 
 func _mark_matched(i, j):
@@ -538,7 +605,26 @@ func get_horizontal_length(i, j) -> int:
 		x += 1
 
 	return count
-	
+
+func get_horizontal_positions(i, j) -> Array:
+	var positions = []
+
+	if all_pieces[i][j] == null:
+		return positions
+
+	var color = all_pieces[i][j].color
+
+	var x = i
+	while x >= 0 and all_pieces[x][j] != null and all_pieces[x][j].color == color:
+		x -= 1
+	x += 1
+
+	while x < width and all_pieces[x][j] != null and all_pieces[x][j].color == color:
+		positions.append(Vector2i(x, j))
+		x += 1
+
+	return positions
+
 func get_vertical_length(i, j) -> int:
 	if all_pieces[i][j] == null:
 		return 0
@@ -557,3 +643,45 @@ func get_vertical_length(i, j) -> int:
 		y += 1
 
 	return count
+
+func get_vertical_positions(i, j) -> Array:
+	var positions = []
+
+	if all_pieces[i][j] == null:
+		return positions
+
+	var color = all_pieces[i][j].color
+
+	var y = j
+	while y >= 0 and all_pieces[i][y] != null and all_pieces[i][y].color == color:
+		y -= 1
+	y += 1
+
+	while y < height and all_pieces[i][y] != null and all_pieces[i][y].color == color:
+		positions.append(Vector2i(i, y))
+		y += 1
+
+	return positions
+	
+func get_special_position(match_positions:Array) -> Vector2i:
+
+	var first_grid = pixel_to_grid(
+		first_touch.x,
+		first_touch.y
+	)
+
+	var final_grid = pixel_to_grid(
+		final_touch.x,
+		final_touch.y
+	)
+
+	first_grid = Vector2i(first_grid)
+	final_grid = Vector2i(final_grid)
+
+	if match_positions.has(first_grid):
+		return first_grid
+
+	if match_positions.has(final_grid):
+		return final_grid
+
+	return match_positions[0]

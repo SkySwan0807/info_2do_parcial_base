@@ -85,11 +85,16 @@ func _ready():
 
 func set_special_type(type: SpecialType):
 	special_type = type
+	if type == SpecialType.RAINBOW:
+		set_color("rainbow")
 	update_sprite()
 
 func update_sprite():
 	if textures.has(color):
 		sprite.texture = textures[color][special_type]
 
+func set_color(new_color: String):
+	color = new_color
+	
 
 	
