@@ -54,7 +54,7 @@ func update_score(nuevo_puntaje: int) -> void:
 	
 	# TODO (PARCIAL · B1): refleja current_score en score_label.text con el formato que prefieras.
 	
-	score_label.text = "Puntos: %d" % current_score
+	score_label.text = "%d" % current_score
 
 
 func update_counter(restantes) -> void:
