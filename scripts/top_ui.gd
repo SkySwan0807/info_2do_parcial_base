@@ -51,11 +51,18 @@ func _find_grid() -> Node:
 
 func update_score(nuevo_puntaje: int) -> void:
 	current_score = nuevo_puntaje
+	
+	# TODO (PARCIAL · B1): refleja current_score en score_label.text con el formato que prefieras.
+	
 	score_label.text = "Puntos: %d" % current_score
 
 
 func update_counter(restantes) -> void:
 	current_count = restantes
+	
+	# TODO (PARCIAL · B2): refleja current_count en counter_label.text.
+	
+	
 	if is_time_mode:
 		# Formato MM:SS para el temporizador
 		var secs  = int(restantes)

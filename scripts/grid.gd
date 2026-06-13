@@ -49,6 +49,14 @@ var first_touch = Vector2.ZERO
 var final_touch = Vector2.ZERO
 var is_controlling = false
 
+# === PUNTAJE (B1) y CONTADOR (B2) ===
+# Contrato sugerido para comunicarte con el HUD (top_ui.gd). No es obligatorio usar
+# señales, pero ayuda a mantener la UI desacoplada de la lógica del tablero:
+#   signal score_changed(nuevo_puntaje: int)
+#   signal counter_changed(restantes: int)        # movimientos o segundos, tú decides
+#   signal game_finished(gano: bool)
+# TODO (PARCIAL · B1/B2): declara aquí el puntaje y el contador (y sus señales, si las usas).
+
 # === Temporizadores del ciclo destruir → colapsar → rellenar ===
 # Son nodos hijos de "grid"; el editor conecta sus señales "timeout" a este script.
 @onready var destroy_timer: Timer = $destroy_timer
@@ -282,6 +290,10 @@ func destroy_matched():
 		for j in height:
 			if all_pieces[i][j] != null and all_pieces[i][j].matched:
 				was_matched = true
+				
+				# TODO (PARCIAL · B1): suma puntaje por cada pieza destruida (o por
+				# combinación) y emite score_changed para actualizar el HUD.
+				
 				pieces_destroyed += 1
 
 				# Recolección por color objetivo
@@ -392,6 +404,15 @@ func _check_win():
 
 
 func game_over():
+	# TODO (PARCIAL · B3): muestra la pantalla final (victoria o derrota), detén la
+	# entrada del jugador y ofrece reiniciar la partida. Emite game_finished(gano).
+	# TODO (PARCIAL · M4): guarda el progreso (nivel alcanzado) y el mejor puntaje
+	# en disco (user://) para conservarlos entre sesiones.
+
+	# TODO (PARCIAL · M2): funciones sugeridas para detectar el bloqueo del tablero.
+	# func hay_jugadas_validas() -> bool:
+	# func rebarajar() -> void:
+
 	if not game_active:
 		return
 	game_active = false
