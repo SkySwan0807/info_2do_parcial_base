@@ -23,6 +23,7 @@ texture = ExtResource("3_jy0d4")
 [node name="grid" type="Node2D" parent="." unique_id=692364129]
 script = ExtResource("4_4jr62")
 width = 8
+height = 10
 x_start = 64
 y_start = 800
 offset = 64
