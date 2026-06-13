@@ -35,6 +35,7 @@ var color_map = {
 	"pink":        3,
 	"yellow":      4,
 	"orange":      5,
+	"rainbow":     6.
 }
 
 # swap back
@@ -109,7 +110,6 @@ func _apply_level_config():
 		emit_signal("counter_changed", seconds_left)
 	elif moves_left > 0:
 		emit_signal("counter_changed", moves_left)
-
 
 func make_2d_array():
 	var array = []
@@ -229,11 +229,13 @@ func _process(_delta):
 		touch_input()
 
 func find_matches():
+	
 	# TODO (PARCIAL · M3): aquí es donde se decide qué piezas forman cada combinación.
 	# Para crear piezas especiales necesitas conocer el LARGO de cada línea: una de 4
 	# genera una pieza de línea (fila/columna) y una de 5 una bomba de color. El chequeo
 	# actual solo mira el "centro" de tríos; probablemente tengas que recorrer las
 	# líneas completas para distinguir combinaciones de 3, 4 y 5.
+
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] != null:
@@ -390,7 +392,6 @@ func _check_win():
 		emit_signal("game_finished", true)
 		game_over_screen(true)
 
-
 func game_over():
 	if not game_active:
 		return
@@ -400,15 +401,12 @@ func game_over():
 	emit_signal("game_finished", false)
 	game_over_screen(false)
 
-
 func game_over_screen(gano: bool):
 	# Busca el nodo GameOverScreen en el árbol y muéstrale el resultado.
 	# Ajusta la ruta según tu escena.
 	var screen = get_tree().get_first_node_in_group("game_over_screen")
 	if screen:
 		screen.show_result(gano, current_score)
-
-
 
 func _use_move():
 	if level_config == null or level_config.limite_movimientos == 0:
@@ -425,7 +423,6 @@ func _use_move():
 		_check_win()   # puede ganar por puntos o recolección; si no, derrota
 		if game_active:
 			game_over()
-
 
 func _on_countdown_timer_timeout():
 	if not game_active:
@@ -466,7 +463,6 @@ func hay_jugadas_validas() -> bool:
 					return true
 	return false
 
-
 func _simulacion_genera_match(i, j) -> bool:
 	if all_pieces[i][j] == null:
 		return false
@@ -493,7 +489,6 @@ func _simulacion_genera_match(i, j) -> bool:
 	if v >= 3: return true
 
 	return false
-
 
 func rebarajar():
 	# Recoge todas las piezas, las mezcla y las redistribuye sin matches
@@ -524,3 +519,41 @@ func rebarajar():
 					all_pieces[i][j].move(grid_to_pixel(i, j))
 					idx += 1
 		intentos += 1
+
+func get_horizontal_length(i, j) -> int:
+	if all_pieces[i][j] == null:
+		return 0
+
+	var color = all_pieces[i][j].color
+	var count = 1
+
+	var x = i - 1
+	while x >= 0 and all_pieces[x][j] != null and all_pieces[x][j].color == color:
+		count += 1
+		x -= 1
+
+	x = i + 1
+	while x < width and all_pieces[x][j] != null and all_pieces[x][j].color == color:
+		count += 1
+		x += 1
+
+	return count
+	
+func get_vertical_length(i, j) -> int:
+	if all_pieces[i][j] == null:
+		return 0
+
+	var color = all_pieces[i][j].color
+	var count = 1
+
+	var y = j - 1
+	while y >= 0 and all_pieces[i][y] != null and all_pieces[i][y].color == color:
+		count += 1
+		y -= 1
+
+	y = j + 1
+	while y < height and all_pieces[i][y] != null and all_pieces[i][y].color == color:
+		count += 1
+		y += 1
+
+	return count
