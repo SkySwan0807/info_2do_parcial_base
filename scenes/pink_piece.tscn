@@ -1,10 +1,16 @@
-[gd_scene load_steps=3 format=3 uid="uid://b0obaufki3l2d"]
+[gd_scene format=3 uid="uid://b0obaufki3l2d"]
 
 [ext_resource type="PackedScene" uid="uid://dimhfx4c1igfv" path="res://scenes/piece.tscn" id="1_d71qm"]
-[ext_resource type="Texture2D" uid="uid://c2rtbqonf0tk7" path="res://assets/pieces/Pink Piece.png" id="2_qy17r"]
+[ext_resource type="Texture2D" uid="uid://da05y0ql1wtlq" path="res://assets/pieces/Pink Row.png" id="2_hugr5"]
+[ext_resource type="Texture2D" uid="uid://ot2d1y7mmcq4" path="res://assets/pieces/Pink Piece.png" id="2_qy17r"]
+[ext_resource type="Texture2D" uid="uid://3aiocq3ljs6v" path="res://assets/pieces/Pink Column.png" id="3_30uhn"]
+[ext_resource type="Texture2D" uid="uid://rli4yguuvhw6" path="res://assets/pieces/Pink Adjacent.png" id="4_fgx3r"]
 
-[node name="PinkPiece" instance=ExtResource("1_d71qm")]
+[node name="PinkPiece" unique_id=990206235 instance=ExtResource("1_d71qm")]
 color = "pink"
+row_texture = ExtResource("2_hugr5")
+column_texture = ExtResource("3_30uhn")
+adjacent_texture = ExtResource("4_fgx3r")
 
-[node name="Sprite2D" parent="." index="0"]
+[node name="Sprite2D" parent="." index="0" unique_id=877362974]
 texture = ExtResource("2_qy17r")

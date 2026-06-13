@@ -29,17 +29,17 @@ func undim() -> void:
 
 func make_row():
 	is_row = true
-	$Sprite2D.texure = row_texture
+	$Sprite2D.texture = row_texture
 	undim()
 
 func make_column():
 	is_column= true
-	$Sprite2D.texure = column_texture
+	$Sprite2D.texture = column_texture
 	undim()
 	
 func make_adjacent():
 	is_adjacent = true
-	$Sprite2D.texure = adjacent_texture
+	$Sprite2D.texture = adjacent_texture
 	undim()
 
 	

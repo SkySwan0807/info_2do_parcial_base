@@ -267,6 +267,7 @@ func find_matches():
 					add_to_array(Vector2(i, (j + 1)))
 					
 	destroy_timer.start()	
+
 func add_to_array(value, array_to_add = current_matches):
 	if !array_to_add.has(value):
 		array_to_add.append(value)
@@ -295,14 +296,18 @@ func find_specials():
 				and
 				this_color == current_color):
 					row_matched += 1
-		if col_matched == 4:
-			print("column")
-		if row_matched == 4:
-			print("row")
-		if col_matched == 3 and row_matched == 3:
-			print("adjacent")
 		if col_matched == 5 or row_matched == 5:
 			print("rainbow")
+		if col_matched >= 3 and row_matched >= 3:
+			make_specials(0, current_color)
+			return
+		if col_matched == 4:
+			make_specials(1, current_color)
+			return
+		if row_matched == 4:
+			make_specials(2, current_color)
+			return
+		
 
 func destroy_matched():
 	find_specials()
@@ -549,3 +554,21 @@ func rebarajar():
 					all_pieces[i][j].move(grid_to_pixel(i, j))
 					idx += 1
 		intentos += 1
+
+func make_specials(type, color):
+	for i in current_matches.size():
+		var current_column = current_matches[i].x
+		var current_row = current_matches[i].y
+		if all_pieces[current_column][current_row] == piece_one and piece_one.color == color:
+			piece_one.matched = false
+			change_to_special(type, piece_one)
+		if all_pieces[current_column][current_row] == piece_two and piece_two.color == color:
+			change_to_special(type, piece_two)
+
+func change_to_special(type, piece):
+	if type == 0:
+		piece.make_adjacent()
+	elif type == 1:
+		piece.make_row()
+	elif type == 2:
+		piece.make_column()
