@@ -15,3 +15,101 @@ data_*/
 mono_crash.*.json
 .DS_Store
 
+
+# =========================================================
+# GODOT
+# =========================================================
+
+# Importaciones y cache
+.import/
+.godot/
+
+# Exports
+.export/
+export_presets.cfg
+
+# Archivos temporales
+*.tmp
+*.temp
+*.cache
+*.translation
+
+# Logs
+logs/
+*.log
+
+# Backups
+*~
+*.bak
+*.swp
+
+# =========================================================
+# C# / MONO
+# =========================================================
+
+.mono/
+data_*/
+mono_crash.*
+
+# Build output
+bin/
+obj/
+build/
+Build/
+dist/
+Dist/
+
+# Archivos Visual Studio
+.vs/
+*.csproj
+*.sln
+*.user
+*.rsuser
+*.userprefs
+*.pidb
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# =========================================================
+# VS CODE
+# =========================================================
+
+.vscode/
+
+# =========================================================
+# JETBRAINS
+# =========================================================
+
+.idea/
+
+# =========================================================
+# SISTEMA OPERATIVO
+# =========================================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================================================
+# ARCHIVOS GRANDES OPCIONALES
+# =========================================================
+
+# Descomenta si no quieres subir assets pesados
+# *.mp4
+# *.psd
+# *.blend
+# *.zip
+
+# =========================================================
+# MANTENER EN GIT
+# =========================================================
+!project.godot
+
+*.import
+.import/
+
+.godot/
+.import/
