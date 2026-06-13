@@ -23,6 +23,7 @@ var possible_pieces = [
 	preload("res://scenes/pink_piece.tscn"),
 	preload("res://scenes/yellow_piece.tscn"),
 	preload("res://scenes/orange_piece.tscn"),
+	
 ]
 # current pieces in scene
 var all_pieces = []
@@ -77,8 +78,6 @@ var seconds_left: float = 0.0
 var game_active: bool  = false
 
 var collected: int = 0   # piezas del color objetivo eliminadas
-
-
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -366,6 +365,9 @@ func check_after_refill():
 				find_matches()
 				destroy_timer.start()
 				return
+			
+			if not hay_jugadas_validas():
+				rebarajar()
 	# El tablero quedó estable: no hay más combinaciones en cascada.
 	# TODO (PARCIAL · M1): verifica si se cumplió o falló el objetivo del nivel
 	# (puntaje meta, piezas recolectadas, etc.) y dispara victoria o derrota.
