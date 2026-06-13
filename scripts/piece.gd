@@ -1,72 +1,19 @@
 extends Node2D
 
 @export var color: String
+@export var row_texture: Texture
+@export var column_texture: Texture
+@export var adjacent_texture: Texture
 
 var matched = false
+
+var is_column = false
+var is_row = false
+var is_adjacent = false
 
 # TODO (PARCIAL · M3): para las piezas especiales podrías guardar aquí su tipo
 # (por ejemplo, "fila", "columna" o "bomba") y exponer un método que dispare su
 # efecto sobre el tablero cuando se active.
-
-@onready var sprite = $Sprite2D
-
-enum SpecialType {
-	NONE,
-	ROW,
-	COLUMN,
-	ADJACENT,
-	RAINBOW
-}
-
-var textures = {
-	"light_green": {
-		SpecialType.NONE: preload("res://assets/pieces/Light Green Piece.png"),
-		SpecialType.ROW: preload("res://assets/pieces/Light Green Row.png"),
-		SpecialType.COLUMN: preload("res://assets/pieces/Light Green Column.png"),
-		SpecialType.ADJACENT: preload("res://assets/pieces/Light Green Adjacent.png"),
-	},
-
-	"blue": {
-		SpecialType.NONE: preload("res://assets/pieces/Blue Piece.png"),
-		SpecialType.ROW: preload("res://assets/pieces/Blue Row.png"),
-		SpecialType.COLUMN: preload("res://assets/pieces/Blue Column.png"),
-		SpecialType.ADJACENT: preload("res://assets/pieces/Blue Adjacent.png"),
-	},
-
-	"green": {
-		SpecialType.NONE: preload("res://assets/pieces/Green Piece.png"),
-		SpecialType.ROW: preload("res://assets/pieces/Green Row.png"),
-		SpecialType.COLUMN: preload("res://assets/pieces/Green Column.png"),
-		SpecialType.ADJACENT: preload("res://assets/pieces/Green Adjacent.png"),
-	},
-
-	"yellow": {
-		SpecialType.NONE: preload("res://assets/pieces/Yellow Piece.png"),
-		SpecialType.ROW: preload("res://assets/pieces/Yellow Row.png"),
-		SpecialType.COLUMN: preload("res://assets/pieces/Yellow Column.png"),
-		SpecialType.ADJACENT: preload("res://assets/pieces/Yellow Adjacent.png"),
-	},
-
-	"pink": {
-		SpecialType.NONE: preload("res://assets/pieces/Pink Piece.png"),
-		SpecialType.ROW: preload("res://assets/pieces/Pink Row.png"),
-		SpecialType.COLUMN: preload("res://assets/pieces/Pink Column.png"),
-		SpecialType.ADJACENT: preload("res://assets/pieces/Pink Adjacent.png"),
-	},
-
-	"orange": {
-		SpecialType.NONE: preload("res://assets/pieces/Orange Piece.png"),
-		SpecialType.ROW: preload("res://assets/pieces/Orange Row.png"),
-		SpecialType.COLUMN: preload("res://assets/pieces/Orange Column.png"),
-		SpecialType.ADJACENT: preload("res://assets/pieces/Orange Adjacent.png"),
-	},
-	
-	"rainbow": {
-		SpecialType.RAINBOW: preload("res://assets/pieces/Rainbow.png"),
-	}
-}
-
-var special_type = SpecialType.NONE
 
 func move(target):
 	var move_tween = create_tween()
@@ -80,21 +27,19 @@ func dim():
 func undim() -> void:
 	$Sprite2D.modulate = Color(1, 1, 1, 1.0)
 
-func _ready():
-	update_sprite()
+func make_row():
+	is_row = true
+	$Sprite2D.texure = row_texture
+	undim()
 
-func set_special_type(type: SpecialType):
-	special_type = type
-	if type == SpecialType.RAINBOW:
-		set_color("rainbow")
-	update_sprite()
-
-func update_sprite():
-	if textures.has(color):
-		sprite.texture = textures[color][special_type]
-
-func set_color(new_color: String):
-	color = new_color
+func make_column():
+	is_column= true
+	$Sprite2D.texure = column_texture
+	undim()
 	
+func make_adjacent():
+	is_adjacent = true
+	$Sprite2D.texure = adjacent_texture
+	undim()
 
 	

@@ -26,6 +26,7 @@ var possible_pieces = [
 ]
 # current pieces in scene
 var all_pieces = []
+var current_matches = []
 
 # Mapa color→escena para filtrar por colores_disponibles del nivel
 var color_map = {
@@ -227,126 +228,87 @@ func _process(_delta):
 		touch_input()
 
 func find_matches():
-
-	var visited = {}
-
+	# TODO (PARCIAL · M3): aquí es donde se decide qué piezas forman cada combinación.
+	# Para crear piezas especiales necesitas conocer el LARGO de cada línea: una de 4
+	# genera una pieza de línea (fila/columna) y una de 5 una bomba de color. El chequeo
+	# actual solo mira el "centro" de tríos; probablemente tengas que recorrer las
+	# líneas completas para distinguir combinaciones de 3, 4 y 5.
 	for i in width:
 		for j in height:
-
-			if all_pieces[i][j] == null:
-				continue
-
-			var current_pos = Vector2i(i, j)
-
-			if visited.has(current_pos):
-				continue
-
-			var piece = all_pieces[i][j]
-
-			var horizontal = get_horizontal_positions(i, j)
-			var vertical = get_vertical_positions(i, j)
-
-			var horizontal_match = horizontal.size() >= 3
-			var vertical_match = vertical.size() >= 3
-
-			if not horizontal_match and not vertical_match:
-				continue
-
-			var match_positions = []
-
-			for pos in horizontal:
-				if not match_positions.has(pos):
-					match_positions.append(pos)
-
-			for pos in vertical:
-				if not match_positions.has(pos):
-					match_positions.append(pos)
-
-			# No procesar la misma combinación varias veces
-			var already_processed = true
-
-			for pos in match_positions:
-				if not visited.has(pos):
-					already_processed = false
-					break
-
-			if already_processed:
-				continue
-
-			for pos in match_positions:
-				visited[pos] = true
-
-			var special_type = piece.SpecialType.NONE
-
-			# ==================================
-			# ARCOIRIS (5 O MÁS EN LÍNEA)
-			# ==================================
-
-			if horizontal.size() >= 5 or vertical.size() >= 5:
-				special_type = piece.SpecialType.RAINBOW
-
-			# ==================================
-			# ADYACENTE (T, L, +)
-			# ==================================
-
-			elif horizontal.size() >= 3 and vertical.size() >= 3:
-				special_type = piece.SpecialType.ADJACENT
-
-			# ==================================
-			# FILA
-			# ==================================
-
-			elif horizontal.size() == 4:
-				special_type = piece.SpecialType.ROW
-
-			# ==================================
-			# COLUMNA
-			# ==================================
-
-			elif vertical.size() == 4:
-				special_type = piece.SpecialType.COLUMN
-
-			var special_pos = null
-
-			if special_type != piece.SpecialType.NONE:
-				special_pos = get_special_position(match_positions)
-
-			for pos in match_positions:
-
-				if special_pos != null and pos == special_pos:
-					continue
-
-				_mark_matched(pos.x, pos.y)
-
-			if special_pos != null:
-
-				var special_piece = all_pieces[special_pos.x][special_pos.y]
-
-				if special_piece != null:
-
-					special_piece.matched = false
-					special_piece.undim()
-
-					# Evita sobrescribir especiales existentes
-					if special_piece.special_type == piece.SpecialType.NONE:
-						special_piece.special_type = special_type
-
-					if special_type == piece.SpecialType.RAINBOW:
-						special_piece.color = "rainbow"
-
-					special_piece.update_sprite()
-
-	destroy_timer.start()
-
+			if all_pieces[i][j] != null:
+				var current_color = all_pieces[i][j].color
+				# detect horizontal matches
+				if (
+					i > 0 and i < width -1 
+					and 
+					all_pieces[i - 1][j] != null and all_pieces[i + 1][j]
+					and 
+					all_pieces[i - 1][j].color == current_color and all_pieces[i + 1][j].color == current_color
+				):
+					_mark_matched((i - 1), (j))
+					_mark_matched((i), (j))
+					_mark_matched((i + 1), (j))
+					add_to_array(Vector2((i + 1), j))
+					add_to_array(Vector2(i, j))
+					add_to_array(Vector2((i - 1), j))
+				# detect vertical matches
+				if (
+					j > 0 and j < height -1 
+					and 
+					all_pieces[i][j - 1] != null and all_pieces[i][j + 1]
+					and 
+					all_pieces[i][j - 1].color == current_color and all_pieces[i][j + 1].color == current_color
+				):
+					_mark_matched((i), (j - 1))
+					_mark_matched((i), (j))
+					_mark_matched((i), (j + 1))
+					add_to_array(Vector2(i, (j - 1)))
+					add_to_array(Vector2(i, (j)))
+					add_to_array(Vector2(i, (j + 1)))
+					
+	destroy_timer.start()	
+func add_to_array(value, array_to_add = current_matches):
+	if !array_to_add.has(value):
+		array_to_add.append(value)
+	
 func _mark_matched(i, j):
 	if all_pieces[i][j] != null and not all_pieces[i][j].matched:
 		all_pieces[i][j].matched = true
 		all_pieces[i][j].dim()
-		
+
+func find_specials():
+	for i in current_matches.size():
+		var current_columm = current_matches[i].x
+		var current_row = current_matches[i].y
+		var current_color = all_pieces[current_columm][current_row].color
+		var col_matched = 0
+		var row_matched = 0
+		for j in current_matches.size():
+			var this_column = current_matches[j].x
+			var this_row = current_matches[j].y
+			var this_color = all_pieces[current_columm][current_row].color
+			if (this_column== current_columm 
+				and
+				this_color == current_color):
+					col_matched += 1
+			if (this_row== current_row 
+				and
+				this_color == current_color):
+					row_matched += 1
+		if col_matched == 4:
+			print("column")
+		if row_matched == 4:
+			print("row")
+		if col_matched == 3 and row_matched == 3:
+			print("adjacent")
+		if col_matched == 5 or row_matched == 5:
+			print("rainbow")
+
 func destroy_matched():
+	find_specials()
 	var was_matched = false
 	var pieces_destroyed = 0
-
+	#print(current_matches)
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] != null and all_pieces[i][j].matched:
@@ -360,6 +322,7 @@ func destroy_matched():
 
 				all_pieces[i][j].queue_free()
 				all_pieces[i][j] = null
+	current_matches.clear()
 
 	if pieces_destroyed > 0:
 		_add_score(pieces_destroyed)
@@ -586,102 +549,3 @@ func rebarajar():
 					all_pieces[i][j].move(grid_to_pixel(i, j))
 					idx += 1
 		intentos += 1
-
-func get_horizontal_length(i, j) -> int:
-	if all_pieces[i][j] == null:
-		return 0
-
-	var color = all_pieces[i][j].color
-	var count = 1
-
-	var x = i - 1
-	while x >= 0 and all_pieces[x][j] != null and all_pieces[x][j].color == color:
-		count += 1
-		x -= 1
-
-	x = i + 1
-	while x < width and all_pieces[x][j] != null and all_pieces[x][j].color == color:
-		count += 1
-		x += 1
-
-	return count
-
-func get_horizontal_positions(i, j) -> Array:
-	var positions = []
-
-	if all_pieces[i][j] == null:
-		return positions
-
-	var color = all_pieces[i][j].color
-
-	var x = i
-	while x >= 0 and all_pieces[x][j] != null and all_pieces[x][j].color == color:
-		x -= 1
-	x += 1
-
-	while x < width and all_pieces[x][j] != null and all_pieces[x][j].color == color:
-		positions.append(Vector2i(x, j))
-		x += 1
-
-	return positions
-
-func get_vertical_length(i, j) -> int:
-	if all_pieces[i][j] == null:
-		return 0
-
-	var color = all_pieces[i][j].color
-	var count = 1
-
-	var y = j - 1
-	while y >= 0 and all_pieces[i][y] != null and all_pieces[i][y].color == color:
-		count += 1
-		y -= 1
-
-	y = j + 1
-	while y < height and all_pieces[i][y] != null and all_pieces[i][y].color == color:
-		count += 1
-		y += 1
-
-	return count
-
-func get_vertical_positions(i, j) -> Array:
-	var positions = []
-
-	if all_pieces[i][j] == null:
-		return positions
-
-	var color = all_pieces[i][j].color
-
-	var y = j
-	while y >= 0 and all_pieces[i][y] != null and all_pieces[i][y].color == color:
-		y -= 1
-	y += 1
-
-	while y < height and all_pieces[i][y] != null and all_pieces[i][y].color == color:
-		positions.append(Vector2i(i, y))
-		y += 1
-
-	return positions
-	
-func get_special_position(match_positions:Array) -> Vector2i:
-
-	var first_grid = pixel_to_grid(
-		first_touch.x,
-		first_touch.y
-	)
-
-	var final_grid = pixel_to_grid(
-		final_touch.x,
-		final_touch.y
-	)
-
-	first_grid = Vector2i(first_grid)
-	final_grid = Vector2i(final_grid)
-
-	if match_positions.has(first_grid):
-		return first_grid
-
-	if match_positions.has(final_grid):
-		return final_grid
-
-	return match_positions[0]
