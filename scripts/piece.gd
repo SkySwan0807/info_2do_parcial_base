@@ -16,3 +16,6 @@ func move(target):
 
 func dim():
 	$Sprite2D.modulate = Color(1, 1, 1, 0.5)
+
+func undim() -> void:
+	$Sprite2D.modulate = Color(1, 1, 1, 1.0)
