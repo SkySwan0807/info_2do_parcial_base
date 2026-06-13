@@ -265,8 +265,22 @@ func find_matches():
 					add_to_array(Vector2(i, (j - 1)))
 					add_to_array(Vector2(i, (j)))
 					add_to_array(Vector2(i, (j + 1)))
-					
+	
+	get_bombed_pieces()
 	destroy_timer.start()	
+
+func get_bombed_pieces():
+	for i in width:
+		for j in height:
+			if (all_pieces[i][j] != null
+			and all_pieces[i][j].matched):
+				if all_pieces[i][j].is_column:
+					match_all_column(i)
+				elif all_pieces[i][j].is_row:
+					match_all_row(j)
+				elif all_pieces[i][j].is_adjacent:
+					match_all_adjecent(i, j)
+
 
 func add_to_array(value, array_to_add = current_matches):
 	if !array_to_add.has(value):
@@ -298,17 +312,16 @@ func find_specials():
 					row_matched += 1
 		if col_matched == 5 or row_matched == 5:
 			print("rainbow")
-		if col_matched >= 3 and row_matched >= 3:
+		elif col_matched >= 3 and row_matched >= 3:
 			make_specials(0, current_color)
 			return
-		if col_matched == 4:
+		elif col_matched == 4:
 			make_specials(1, current_color)
 			return
-		if row_matched == 4:
+		elif row_matched == 4: 
 			make_specials(2, current_color)
 			return
 		
-
 func destroy_matched():
 	find_specials()
 	var was_matched = false
@@ -572,3 +585,38 @@ func change_to_special(type, piece):
 		piece.make_row()
 	elif type == 2:
 		piece.make_column()
+
+func match_all_column(column):
+	for i in height:
+		if all_pieces[column][i] != null:
+			if all_pieces[column][i].is_row:
+				match_all_row(i)
+			if all_pieces[column][i].is_adjacent:
+				match_all_adjecent(column, i)
+			all_pieces[column][i].matched = true
+
+func match_all_row(row):
+	for j in width:
+		if all_pieces[j][row] != null:
+			if all_pieces[j][row].is_column:
+				match_all_column(j)
+			if all_pieces[j][row].is_adjacent:
+				match_all_adjecent(j, row)
+			all_pieces[j][row].matched = true
+
+func is_in_grid(grid_position):
+	if(grid_position.x >= 0 and grid_position.x < width):
+		if(grid_position.y >= 0 and grid_position.y < height):
+			return true
+	return false
+
+func match_all_adjecent(column, row):
+	for i in range(-1, 2):
+		for j in range(-1, 2):
+			if (is_in_grid(Vector2((column + i), (row + j)))
+				and all_pieces[column + i][row + j] != null):
+				if all_pieces[i][j].is_column:
+					match_all_column(i)
+				if all_pieces[i][j].is_column:
+					match_all_column(j)
+				all_pieces[column + i][row + j].matched = true
