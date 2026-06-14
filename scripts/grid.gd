@@ -191,7 +191,9 @@ func swap_pieces(column, row, direction: Vector2):
 		if first_piece.color == "rainbow" and other_piece.color == "rainbow":
 			clear_board()
 			_mark_matched(column, row)
+			add_to_array(Vector2(column, row))
 			_mark_matched(column + direction.x, row + direction.y)
+			add_to_array(Vector2(column + direction.x, row + direction.y))
 		elif first_piece.color == "rainbow" and other_piece.color != "rainbow":
 			match_color(other_piece.color)
 			_mark_matched(column, row)
