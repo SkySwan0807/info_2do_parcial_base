@@ -4,6 +4,10 @@
 [ext_resource type="PackedScene" uid="uid://bt33j5dwxano3" path="res://scenes/top_ui.tscn" id="2_wrbvl"]
 [ext_resource type="Texture2D" uid="uid://dk41ltr0jdhta" path="res://assets/bottom_ui.png" id="3_jy0d4"]
 [ext_resource type="Script" uid="uid://biuagxx08tqcb" path="res://scripts/grid.gd" id="4_4jr62"]
+[ext_resource type="AudioStream" uid="uid://csx6otadxuuqi" path="res://assets/Match 3 Sounds/Match 3 Sounds/Sounds/4.ogg" id="5_iywne"]
+[ext_resource type="AudioStream" uid="uid://d3q45rgv51u47" path="res://assets/Match 3 Sounds/Match 3 Sounds/Sounds/6.ogg" id="7_0tnpc"]
+[ext_resource type="AudioStream" uid="uid://c1lmbs21s0bhf" path="res://assets/Match 3 Sounds/Match 3 Sounds/Music/theme-4.ogg" id="8_gee14"]
+[ext_resource type="AudioStream" uid="uid://chj4dhkf7jka5" path="res://assets/Match 3 Sounds/Match 3 Sounds/Sounds/7.ogg" id="8_vtaks"]
 
 [node name="Game" type="Node2D" unique_id=490213405]
 
@@ -42,6 +46,19 @@ wait_time = 0.5
 one_shot = true
 
 [node name="countdown_timer" type="Timer" parent="grid" unique_id=1157310482]
+
+[node name="SwapSound" type="AudioStreamPlayer2D" parent="." unique_id=700504968]
+stream = ExtResource("5_iywne")
+
+[node name="InvalidMoveSound" type="AudioStreamPlayer2D" parent="." unique_id=100258105]
+stream = ExtResource("8_vtaks")
+
+[node name="BigMatchSound" type="AudioStreamPlayer2D" parent="." unique_id=28370150]
+stream = ExtResource("7_0tnpc")
+
+[node name="MusicSound" type="AudioStreamPlayer2D" parent="." unique_id=1586543598]
+stream = ExtResource("8_gee14")
+parameters/looping = true
 
 [connection signal="timeout" from="grid/destroy_timer" to="grid" method="_on_destroy_timer_timeout"]
 [connection signal="timeout" from="grid/collapse_timer" to="grid" method="_on_collapse_timer_timeout"]

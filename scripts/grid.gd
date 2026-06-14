@@ -12,8 +12,11 @@ var state
 @export var offset: int
 @export var y_offset: int
 
-# Arrastra el .tres del nivel en el Inspector, o asígnalo por código antes de _ready.
-@export var level_config: LevelConfig
+# Arrastra los .tres de niveles aquí en el Inspector (New Resource → LevelConfig).
+@export var niveles: Array[LevelConfig] = []
+var nivel_actual_idx: int = 0
+var level_config: LevelConfig = null
+
 
 # piece array
 var possible_pieces = [
@@ -24,6 +27,10 @@ var possible_pieces = [
 	preload("res://scenes/yellow_piece.tscn"),
 	preload("res://scenes/orange_piece.tscn"),
 ]
+
+# Copia de seguridad de la lista original, para no perderla al filtrar.
+var all_possible_pieces = []
+
 # current pieces in scene
 var all_pieces = []
 var current_matches = []
@@ -76,33 +83,55 @@ var collected: int = 0   # piezas del color objetivo eliminadas
 func _ready():
 	state = MOVE
 	randomize()
-	_apply_level_config()
+ 
+	# Guardar copia original de piezas antes de cualquier filtro
+	all_possible_pieces = possible_pieces.duplicate()
+ 
+	# Construir array vacío
 	all_pieces = make_2d_array()
+ 
+	# 1) Cargar nivel guardado
+	nivel_actual_idx = _leer_datos_guardados().get("nivel_actual_idx", 0)
+	nivel_actual_idx = clamp(nivel_actual_idx, 0, max(0, niveles.size() - 1))
+	level_config = niveles[nivel_actual_idx] if niveles.size() > 0 else null
+ 
+	# 2) Aplicar configuración del nivel (filtra possible_pieces)
+	_apply_level_config()
+ 
+	# 3) Generar tablero con las piezas ya filtradas
 	spawn_pieces()
+ 
 	game_active = true
 
 func _apply_level_config():
+	# Restaurar lista completa antes de filtrar (importante en reinicios)
+	if all_possible_pieces.size() > 0:
+		possible_pieces = all_possible_pieces.duplicate()
+ 
 	if level_config == null:
-		# Valores por defecto si no hay nivel configurado
+		# Sin nivel configurado: modo libre con valores razonables
 		moves_left   = 20
 		seconds_left = 0.0
+		emit_signal("counter_changed", moves_left)
 		return
-
+ 
 	moves_left   = level_config.limite_movimientos
 	seconds_left = float(level_config.limite_segundos)
-
+ 
 	# Filtrar piezas disponibles según el nivel
 	var available_indices: Array = []
 	for color_name in level_config.colores_disponibles:
 		if color_map.has(color_name):
-			available_indices.append(color_map[color_name])
+			var idx = color_map[color_name]
+			if idx < all_possible_pieces.size():
+				available_indices.append(idx)
 	if available_indices.size() > 0:
 		var filtered = []
 		for idx in available_indices:
-			filtered.append(possible_pieces[idx])
+			filtered.append(all_possible_pieces[idx])
 		possible_pieces = filtered
-
-	# Arrancar temporizador de cuenta regresiva si aplica
+ 
+	# Arrancar temporizador de cuenta regresiva si el nivel es por tiempo
 	if seconds_left > 0:
 		countdown_timer.wait_time = 1.0
 		countdown_timer.start()
@@ -117,7 +146,7 @@ func make_2d_array():
 		for j in height:
 			array[i].append(null)
 	return array
-
+ 
 func grid_to_pixel(column, row):
 	var new_x = x_start + offset * column
 	var new_y = y_start - offset * row
@@ -208,6 +237,7 @@ func swap_back():
 		swap_pieces(last_place.x, last_place.y, last_direction)
 	state = MOVE
 	move_checked = false
+	get_node("../InvalidMoveSound").play()
 
 func touch_difference(grid_1, grid_2):
 	var difference = grid_2 - grid_1
@@ -322,6 +352,16 @@ func find_specials():
 			make_specials(2, current_color)
 			return
 		
+func play_invalid_move_sound():
+	get_node("../InvalidMoveSound").play()
+
+func play_swap_sound():
+	get_node("../SwapSound").play()
+
+func play_big_match_sound():
+	get_node("../BigMatchSound").play()
+
+
 func destroy_matched():
 	find_specials()
 	var was_matched = false
@@ -344,6 +384,10 @@ func destroy_matched():
 
 	if pieces_destroyed > 0:
 		_add_score(pieces_destroyed)
+		if pieces_destroyed <= 3:
+			play_swap_sound()
+		if pieces_destroyed >= 4:
+			play_big_match_sound()
 
 	move_checked = true
 	if was_matched:
@@ -409,6 +453,9 @@ func check_after_refill():
 	# (puntaje meta, piezas recolectadas, etc.) y dispara victoria o derrota.
 	# TODO (PARCIAL · M2): comprueba si todavía existe alguna jugada válida; si no,
 	# rebaraja el tablero hasta que haya al menos una.
+	_check_win()
+	if game_active and not hay_jugadas_validas():
+		rebarajar()
 	state = MOVE
 	move_checked = false
 
@@ -424,9 +471,8 @@ func _on_refill_timer_timeout():
 func _check_win():
 	if not game_active or level_config == null:
 		return
-
+ 
 	var gano = false
-
 	match level_config.objetivo_tipo:
 		LevelConfig.Objetivo.PUNTAJE:
 			if current_score >= level_config.objetivo_valor:
@@ -434,20 +480,38 @@ func _check_win():
 		LevelConfig.Objetivo.RECOLECTAR_COLOR:
 			if collected >= level_config.objetivo_valor:
 				gano = true
-
+ 
 	if gano:
 		game_active = false
+		countdown_timer.stop()
+		var siguiente = nivel_actual_idx + 1
+		_guardar_progreso(siguiente)
 		emit_signal("game_finished", true)
-		game_over_screen(true)
-
+		if siguiente < niveles.size():
+			# Hay más niveles: recargar la escena, _ready() cargará el siguiente
+			get_tree().reload_current_scene()
+		else:
+			# Último nivel completado
+			_mostrar_game_over_screen(true)
+ 
 func game_over():
 	if not game_active:
 		return
 	game_active = false
 	state       = WAIT
 	countdown_timer.stop()
+	_guardar_record()
 	emit_signal("game_finished", false)
-	game_over_screen(false)
+	_mostrar_game_over_screen(false)
+ 
+
+func _mostrar_game_over_screen(gano: bool):
+	var screen = get_tree().get_first_node_in_group("game_over_screen")
+	if screen:
+		screen.show_result(gano, current_score)
+	else:
+		push_warning("grid.gd: no se encontró ningún nodo en el grupo 'game_over_screen'.")
+
 
 func game_over_screen(gano: bool):
 	# Busca el nodo GameOverScreen en el árbol y muéstrale el resultado.
@@ -458,17 +522,13 @@ func game_over_screen(gano: bool):
 
 func _use_move():
 	if level_config == null or level_config.limite_movimientos == 0:
-		return   # sin límite de movimientos
-
-	# Solo descuenta movimientos si NO es un nivel de solo tiempo
-	if level_config.limite_segundos > 0 and level_config.limite_movimientos == 0:
-		return
-
+		return   # sin límite de movimientos activo
+ 
 	moves_left -= 1
 	emit_signal("counter_changed", moves_left)
-
+ 
 	if moves_left <= 0:
-		_check_win()   # puede ganar por puntos o recolección; si no, derrota
+		_check_win()
 		if game_active:
 			game_over()
 
@@ -620,3 +680,39 @@ func match_all_adjecent(column, row):
 				if all_pieces[i][j].is_column:
 					match_all_column(j)
 				all_pieces[column + i][row + j].matched = true
+
+const RUTA_GUARDADO = "user://save.json"
+ 
+func _leer_datos_guardados() -> Dictionary:
+	if not FileAccess.file_exists(RUTA_GUARDADO):
+		return {"record_puntaje": 0, "nivel_actual_idx": 0}
+	var file = FileAccess.open(RUTA_GUARDADO, FileAccess.READ)
+	if file == null:
+		return {"record_puntaje": 0, "nivel_actual_idx": 0}
+	var resultado = JSON.parse_string(file.get_as_text())
+	file.close()
+	if resultado == null:
+		return {"record_puntaje": 0, "nivel_actual_idx": 0}
+	return resultado
+ 
+func _guardar_record() -> void:
+	var datos = _leer_datos_guardados()
+	if current_score > datos.get("record_puntaje", 0):
+		datos["record_puntaje"] = current_score
+	var file = FileAccess.open(RUTA_GUARDADO, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(datos))
+		file.close()
+ 
+func _guardar_progreso(siguiente_idx: int) -> void:
+	var datos = _leer_datos_guardados()
+	datos["nivel_actual_idx"] = siguiente_idx
+	if current_score > datos.get("record_puntaje", 0):
+		datos["record_puntaje"] = current_score
+	var file = FileAccess.open(RUTA_GUARDADO, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(datos))
+		file.close()
+ 
+func get_record() -> int:
+	return _leer_datos_guardados().get("record_puntaje", 0)

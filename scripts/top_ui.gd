@@ -2,6 +2,7 @@ extends TextureRect
 
 @onready var score_label = $MarginContainer/HBoxContainer/score_label
 @onready var counter_label = $MarginContainer/HBoxContainer/counter_label
+@onready var objetivo_label = $MarginContainer/HBoxContainer/objetivo_label
 
 var current_score = 0
 var current_count = 0
@@ -23,7 +24,6 @@ func _ready():
 	grid.counter_changed.connect(update_counter)
 	grid.game_finished.connect(_on_game_finished)
 
-	# Detectar modo tiempo según el LevelConfig del grid
 	if grid.level_config != null and grid.level_config.limite_segundos > 0:
 		is_time_mode = true
 
@@ -34,6 +34,12 @@ func _ready():
 			update_counter(float(grid.level_config.limite_segundos))
 		else:
 			update_counter(grid.level_config.limite_movimientos)
+		# Mostrar objetivo siempre, sin importar el modo
+		_update_objetivo_label(grid.level_config)
+	else:
+		update_counter(20)
+		
+	get_node("../MusicSound").play()
 
 
 func _find_grid() -> Node:
@@ -55,24 +61,31 @@ func update_score(nuevo_puntaje: int) -> void:
 	
 	score_label.text = "%d" % current_score
 
+func _update_objetivo_label(lc: LevelConfig) -> void:
+	if objetivo_label == null:
+		return
+	match lc.objetivo_tipo:
+		LevelConfig.Objetivo.PUNTAJE:
+			objetivo_label.text = "Meta: %d pts" % lc.objetivo_valor
+		LevelConfig.Objetivo.RECOLECTAR_COLOR:
+			objetivo_label.text = "Recolectar: %d %s" % [lc.objetivo_valor, lc.objetivo_color]
 
 func update_counter(restantes) -> void:
 	current_count = restantes
 	if is_time_mode:
 		# Formato MM:SS para el temporizador
-		var secs  = int(restantes)
-		var mins  = secs / 60
-		secs      = secs % 60
-		counter_label.text = "Tiempo: %02d:%02d" % [mins, secs]
-
+		var secs = int(restantes)
+		var mins = secs / 60
+		secs     = secs % 60
+		counter_label.text = "%02d:%02d" % [mins, secs]
 		# Tinte rojo cuando quedan menos de 10 segundos
 		if restantes <= 10:
 			counter_label.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 		else:
 			counter_label.remove_theme_color_override("font_color")
 	else:
-		counter_label.text = "Movimientos: %d" % int(restantes)
-
+		# Modo movimientos
+		counter_label.text = "%d" % int(restantes)
 		# Tinte naranja cuando quedan 5 o menos movimientos
 		if int(restantes) <= 5:
 			counter_label.add_theme_color_override("font_color", Color(1, 0.5, 0.0))
@@ -81,8 +94,6 @@ func update_counter(restantes) -> void:
 
 
 func _on_game_finished(gano: bool) -> void:
-	# El grid ya llama a game_over_screen; aquí puedes hacer efectos extra en la UI.
-	# Por ejemplo, congelar los labels con el puntaje final.
 	if gano:
 		score_label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
 	else:
