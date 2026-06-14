@@ -1,15 +1,14 @@
 extends Node2D
 
 @export var color: String
-@export var row_texture: Texture
-@export var column_texture: Texture
+@export var row_texture:      Texture
+@export var column_texture:   Texture
 @export var adjacent_texture: Texture
 @export var rainbow_texture: Texture
 
-var matched = false
-
-var is_column = false
-var is_row = false
+var matched    = false
+var is_column  = false
+var is_row     = false
 var is_adjacent = false
 var is_rainbow = false
 
@@ -30,17 +29,17 @@ func undim() -> void:
 	$Sprite2D.modulate = Color(1, 1, 1, 1.0)
 
 func make_row():
-	is_row = true
+	is_row            = true
 	$Sprite2D.texture = row_texture
 	undim()
 
 func make_column():
-	is_column= true
+	is_column         = true
 	$Sprite2D.texture = column_texture
 	undim()
-	
+
 func make_adjacent():
-	is_adjacent = true
+	is_adjacent       = true
 	$Sprite2D.texture = adjacent_texture
 	undim()
 

@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://dgf70l51cx22b"]
+
+[ext_resource type="Script" uid="uid://d3y26ghynvnta" path="res://scripts/game_over_screen.gd" id="1_6a6fq"]
+
+[node name="GameOverScreen" type="CanvasLayer" unique_id=1003156709 groups=["game_over_screen"]]
+script = ExtResource("1_6a6fq")
+
+[node name="Panel" type="Panel" parent="." unique_id=2106810386]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=1735031464]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="tittle_label" type="Label" parent="Panel/VBoxContainer" unique_id=1318063446]
+layout_mode = 2
+text = "GAME OVER"
+
+[node name="score_label" type="Label" parent="Panel/VBoxContainer" unique_id=1727999126]
+layout_mode = 2
+
+[node name="record_label" type="Label" parent="Panel/VBoxContainer" unique_id=1635547315]
+layout_mode = 2
+
+[node name="restart_buttom" type="Label" parent="Panel/VBoxContainer" unique_id=1452251095]
+layout_mode = 2
+text = "REINICIAR"
+
+[node name="next_buttom" type="Label" parent="Panel/VBoxContainer" unique_id=442871150]
+layout_mode = 2
+text = "SIGUIENTE"

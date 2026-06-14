@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LevelConfig" format=3 uid="uid://xs8r7hmdg400"]
+
+[ext_resource type="Script" uid="uid://blhm7y1ddy3c6" path="res://scripts/level_config.gd" id="1_brxkq"]
+
+[resource]
+script = ExtResource("1_brxkq")
+nombre = "Nivel 3"
+objetivo_valor = 500
+limite_movimientos = 5
+limite_segundos = 20
+metadata/_custom_type_script = "uid://blhm7y1ddy3c6"

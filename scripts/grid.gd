@@ -12,8 +12,11 @@ var state
 @export var offset: int
 @export var y_offset: int
 
-# Arrastra el .tres del nivel en el Inspector, o asígnalo por código antes de _ready.
-@export var level_config: LevelConfig
+# Arrastra los .tres de niveles aquí en el Inspector (New Resource → LevelConfig).
+@export var niveles: Array[LevelConfig] = [LevelConfig.nivel_1(),LevelConfig.nivel_2(), LevelConfig.nivel_3()]
+var nivel_actual_idx: int = 0
+var level_config: LevelConfig = null
+
 
 # piece array
 var possible_pieces = [
@@ -24,11 +27,11 @@ var possible_pieces = [
 	#preload("res://scenes/yellow_piece.tscn"),
 	#preload("res://scenes/orange_piece.tscn"),
 ]
-# current pieces in scene
+
+var all_possible_pieces = []
 var all_pieces = []
 var current_matches = []
 
-# Mapa color→escena para filtrar por colores_disponibles del nivel
 var color_map = {
 	"blue":        0,
 	"green":       1,
@@ -36,7 +39,6 @@ var color_map = {
 	"pink":        3,
 	"yellow":      4,
 	"orange":      5,
-	"rainbow":     6.
 }
 
 # swap back
@@ -51,58 +53,78 @@ var first_touch = Vector2.ZERO
 var final_touch = Vector2.ZERO
 var is_controlling = false
 
-# === Temporizadores del ciclo destruir → colapsar → rellenar ===
-# Son nodos hijos de "grid"; el editor conecta sus señales "timeout" a este script.
-@onready var destroy_timer: Timer = $destroy_timer
+# ── Timers (deben existir como nodos hijos de "grid" en la escena) ──
+@onready var destroy_timer:  Timer = $destroy_timer
 @onready var collapse_timer: Timer = $collapse_timer
-@onready var refill_timer: Timer = $refill_timer
+@onready var refill_timer:   Timer = $refill_timer
+@onready var countdown_timer: Timer = $countdown_timer   # Modo tiempo
 
-# Timer para el modo contrarreloj (solo activo si limite_segundos > 0)
-@onready var countdown_timer: Timer = $countdown_timer   # añádelo en la escena también
-
-# PUNTAJE Y CONTADOR 
+# ── Señales ──
 signal score_changed(nuevo_puntaje: int)
-signal counter_changed(restantes)   # int (movimientos) o float (segundos)
+signal counter_changed(restantes)       # int (movimientos) o float (segundos)
 signal game_finished(gano: bool)
+signal objetivo_actualizado(actual: int, meta: int)  # para el HUD de objetivos
 
-var current_score: int = 0
-var moves_left: int    = 0
-var seconds_left: float = 0.0
-var game_active: bool  = false
+# ── Estado de juego ──
+var current_score: int  = 0
+var moves_left:    int  = 0
+var seconds_left:  float = 0.0
+var game_active:   bool  = false
 
 var collected: int = 0   # piezas del color objetivo eliminadas
 
-# Called when the node enters the scene tree for the first time.
+# ─────────────────────────────────────────────────────────────────────
+# READY
+# ─────────────────────────────────────────────────────────────────────
 func _ready():
 	state = MOVE
 	randomize()
+
+	all_possible_pieces = possible_pieces.duplicate()
+	all_pieces          = make_2d_array()
+
+	# Cargar progreso guardado
+	var datos = _leer_datos_guardados()
+	nivel_actual_idx = datos.get("nivel_actual_idx", 0)
+	nivel_actual_idx = clamp(nivel_actual_idx, 0, max(0, niveles.size() - 1))
+	level_config = niveles[nivel_actual_idx] if niveles.size() > 0 else null
+	
 	_apply_level_config()
-	all_pieces = make_2d_array()
 	spawn_pieces()
 	game_active = true
 
+# ─────────────────────────────────────────────────────────────────────
+# CONFIGURACIÓN DEL NIVEL
+# ─────────────────────────────────────────────────────────────────────
 func _apply_level_config():
+	# Restaurar lista completa antes de filtrar
+	if all_possible_pieces.size() > 0:
+		possible_pieces = all_possible_pieces.duplicate()
+
 	if level_config == null:
-		# Valores por defecto si no hay nivel configurado
 		moves_left   = 20
 		seconds_left = 0.0
+		emit_signal("counter_changed", moves_left)
 		return
 
 	moves_left   = level_config.limite_movimientos
 	seconds_left = float(level_config.limite_segundos)
+	collected    = 0
 
 	# Filtrar piezas disponibles según el nivel
 	var available_indices: Array = []
 	for color_name in level_config.colores_disponibles:
 		if color_map.has(color_name):
-			available_indices.append(color_map[color_name])
+			var idx = color_map[color_name]
+			if idx < all_possible_pieces.size():
+				available_indices.append(idx)
 	if available_indices.size() > 0:
 		var filtered = []
 		for idx in available_indices:
-			filtered.append(possible_pieces[idx])
+			filtered.append(all_possible_pieces[idx])
 		possible_pieces = filtered
 
-	# Arrancar temporizador de cuenta regresiva si aplica
+	# Arrancar temporizador de cuenta regresiva si el nivel es por tiempo
 	if seconds_left > 0:
 		countdown_timer.wait_time = 1.0
 		countdown_timer.start()
@@ -110,6 +132,12 @@ func _apply_level_config():
 	elif moves_left > 0:
 		emit_signal("counter_changed", moves_left)
 
+	# Emitir estado inicial del objetivo
+	emit_signal("objetivo_actualizado", 0, level_config.objetivo_valor)
+
+# ─────────────────────────────────────────────────────────────────────
+# GRID UTILITIES
+# ─────────────────────────────────────────────────────────────────────
 func make_2d_array():
 	var array = []
 	for i in width:
@@ -122,32 +150,31 @@ func grid_to_pixel(column, row):
 	var new_x = x_start + offset * column
 	var new_y = y_start - offset * row
 	return Vector2(new_x, new_y)
-	
+
 func pixel_to_grid(pixel_x, pixel_y):
 	var new_x = round((pixel_x - x_start) / offset)
 	var new_y = round((pixel_y - y_start) / -offset)
 	return Vector2(new_x, new_y)
-	
+
 func in_grid(column, row):
 	return column >= 0 and column < width and row >= 0 and row < height
-	
+
+# ─────────────────────────────────────────────────────────────────────
+# SPAWN
+# ─────────────────────────────────────────────────────────────────────
 func spawn_pieces():
 	for i in width:
 		for j in height:
-			# random number
 			var rand = randi_range(0, possible_pieces.size() - 1)
-			# instance 
 			var piece = possible_pieces[rand].instantiate()
-			# repeat until no matches
 			var max_loops = 100
 			var loops = 0
-			while (match_at(i, j, piece.color) and loops < max_loops):
-				rand = randi_range(0, possible_pieces.size() - 1)
+			while match_at(i, j, piece.color) and loops < max_loops:
+				rand  = randi_range(0, possible_pieces.size() - 1)
 				loops += 1
 				piece = possible_pieces[rand].instantiate()
 			add_child(piece)
-			piece.position = grid_to_pixel(i, j)
-			# fill array with pieces
+			piece.position   = grid_to_pixel(i, j)
 			all_pieces[i][j] = piece
 
 func is_rainbow(piece_one, piece_two):
@@ -156,34 +183,55 @@ func is_rainbow(piece_one, piece_two):
 	return false
 
 func match_at(i, j, color):
-	# check left
 	if i > 1:
 		if all_pieces[i - 1][j] != null and all_pieces[i - 2][j] != null:
 			if all_pieces[i - 1][j].color == color and all_pieces[i - 2][j].color == color:
 				return true
-	# check down
-	if j> 1:
+	if j > 1:
 		if all_pieces[i][j - 1] != null and all_pieces[i][j - 2] != null:
 			if all_pieces[i][j - 1].color == color and all_pieces[i][j - 2].color == color:
 				return true
 	return false
 
+# ─────────────────────────────────────────────────────────────────────
+# INPUT
+# ─────────────────────────────────────────────────────────────────────
 func touch_input():
 	var mouse_pos = get_global_mouse_position()
-	var grid_pos = pixel_to_grid(mouse_pos.x, mouse_pos.y)
+	var grid_pos  = pixel_to_grid(mouse_pos.x, mouse_pos.y)
+
 	if Input.is_action_just_pressed("ui_touch") and in_grid(grid_pos.x, grid_pos.y):
-		first_touch = grid_pos
+		first_touch   = grid_pos
 		is_controlling = true
-		
-	# release button
+
 	if Input.is_action_just_released("ui_touch") and in_grid(grid_pos.x, grid_pos.y) and is_controlling:
 		is_controlling = false
-		final_touch = grid_pos
+		final_touch    = grid_pos
 		touch_difference(first_touch, final_touch)
 
+func touch_difference(grid_1, grid_2):
+	var difference = grid_2 - grid_1
+	if abs(difference.x) > abs(difference.y):
+		if difference.x > 0:
+			swap_pieces(grid_1.x, grid_1.y, Vector2(1,  0))
+		elif difference.x < 0:
+			swap_pieces(grid_1.x, grid_1.y, Vector2(-1, 0))
+	elif abs(difference.y) > abs(difference.x):
+		if difference.y > 0:
+			swap_pieces(grid_1.x, grid_1.y, Vector2(0,  1))
+		elif difference.y < 0:
+			swap_pieces(grid_1.x, grid_1.y, Vector2(0, -1))
+
+func _process(_delta):
+	if state == MOVE and game_active:
+		touch_input()
+
+# ─────────────────────────────────────────────────────────────────────
+# SWAP
+# ─────────────────────────────────────────────────────────────────────
 func swap_pieces(column, row, direction: Vector2):
 	var first_piece = all_pieces[column][row]
-	var other_piece = all_pieces[column + direction.x][row + direction.y]
+	var other_piece = all_pieces[column + int(direction.x)][row + int(direction.y)]
 	if first_piece == null or other_piece == null:
 		return
 	# swap
@@ -204,96 +252,72 @@ func swap_pieces(column, row, direction: Vector2):
 			add_to_array(Vector2(column + direction.x, row + direction.y))
 	state = WAIT
 	store_info(first_piece, other_piece, Vector2(column, row), direction)
-	all_pieces[column][row] = other_piece
-	all_pieces[column + direction.x][row + direction.y] = first_piece
-	#first_piece.position = grid_to_pixel(column + direction.x, row + direction.y)
-	#other_piece.position = grid_to_pixel(column, row)
-	first_piece.move(grid_to_pixel(column + direction.x, row + direction.y))
+
+	all_pieces[column][row]                                         = other_piece
+	all_pieces[column + int(direction.x)][row + int(direction.y)]  = first_piece
+
+	first_piece.move(grid_to_pixel(column + int(direction.x), row + int(direction.y)))
 	other_piece.move(grid_to_pixel(column, row))
-	# TODO (PARCIAL · M3): si alguna de las piezas intercambiadas es especial,
-	# actívala aquí (su efecto reemplaza a la búsqueda normal de combinaciones).
-	# TODO (PARCIAL · B2): un intercambio válido consume una jugada. Decide dónde
-	# descontar el contador: aquí, o en destroy_matched() solo si hubo combinación.
+
+	play_swap_sound()
+
 	if not move_checked:
 		find_matches()
 
 func store_info(first_piece, other_piece, place, direction):
-	piece_one = first_piece
-	piece_two = other_piece
-	last_place = place
-	last_direction = direction
+	piece_one       = first_piece
+	piece_two       = other_piece
+	last_place      = place
+	last_direction  = direction
 
 func swap_back():
 	if piece_one != null and piece_two != null:
 		swap_pieces(last_place.x, last_place.y, last_direction)
-	state = MOVE
+	state        = MOVE
 	move_checked = false
+	play_invalid_move_sound()
 
-func touch_difference(grid_1, grid_2):
-	var difference = grid_2 - grid_1
-	# should move x or y?
-	if abs(difference.x) > abs(difference.y):
-		if difference.x > 0:
-			swap_pieces(grid_1.x, grid_1.y, Vector2(1, 0))
-		elif difference.x < 0:
-			swap_pieces(grid_1.x, grid_1.y, Vector2(-1, 0))
-	if abs(difference.y) > abs(difference.x):
-		if difference.y > 0:
-			swap_pieces(grid_1.x, grid_1.y, Vector2(0, 1))
-		elif difference.y < 0:
-			swap_pieces(grid_1.x, grid_1.y, Vector2(0, -1))
-
-func _process(_delta):
-	if state == MOVE and game_active:
-		touch_input()
-
+# ─────────────────────────────────────────────────────────────────────
+# MATCH FINDING
+# ─────────────────────────────────────────────────────────────────────
 func find_matches():
-	# TODO (PARCIAL · M3): aquí es donde se decide qué piezas forman cada combinación.
-	# Para crear piezas especiales necesitas conocer el LARGO de cada línea: una de 4
-	# genera una pieza de línea (fila/columna) y una de 5 una bomba de color. El chequeo
-	# actual solo mira el "centro" de tríos; probablemente tengas que recorrer las
-	# líneas completas para distinguir combinaciones de 3, 4 y 5.
 	for i in width:
 		for j in height:
-			if all_pieces[i][j] != null:
-				var current_color = all_pieces[i][j].color
-				# detect horizontal matches
-				if (
-					i > 0 and i < width -1 
-					and 
-					all_pieces[i - 1][j] != null and all_pieces[i + 1][j]
-					and 
-					all_pieces[i - 1][j].color == current_color and all_pieces[i + 1][j].color == current_color
-				):
-					_mark_matched((i - 1), (j))
-					_mark_matched((i), (j))
-					_mark_matched((i + 1), (j))
-					add_to_array(Vector2((i + 1), j))
-					add_to_array(Vector2(i, j))
-					add_to_array(Vector2((i - 1), j))
-				# detect vertical matches
-				if (
-					j > 0 and j < height -1 
-					and 
-					all_pieces[i][j - 1] != null and all_pieces[i][j + 1]
-					and 
-					all_pieces[i][j - 1].color == current_color and all_pieces[i][j + 1].color == current_color
-				):
-					_mark_matched((i), (j - 1))
-					_mark_matched((i), (j))
-					_mark_matched((i), (j + 1))
-					add_to_array(Vector2(i, (j - 1)))
-					add_to_array(Vector2(i, (j)))
-					add_to_array(Vector2(i, (j + 1)))
-	
+			if all_pieces[i][j] == null:
+				continue
+			var current_color = all_pieces[i][j].color
+
+			# Horizontal
+			if (i > 0 and i < width - 1
+					and all_pieces[i - 1][j] != null and all_pieces[i + 1][j] != null
+					and all_pieces[i - 1][j].color == current_color
+					and all_pieces[i + 1][j].color == current_color):
+				_mark_matched(i - 1, j)
+				_mark_matched(i,     j)
+				_mark_matched(i + 1, j)
+				add_to_array(Vector2(i - 1, j))
+				add_to_array(Vector2(i,     j))
+				add_to_array(Vector2(i + 1, j))
+
+			# Vertical
+			if (j > 0 and j < height - 1
+					and all_pieces[i][j - 1] != null and all_pieces[i][j + 1] != null
+					and all_pieces[i][j - 1].color == current_color
+					and all_pieces[i][j + 1].color == current_color):
+				_mark_matched(i, j - 1)
+				_mark_matched(i, j    )
+				_mark_matched(i, j + 1)
+				add_to_array(Vector2(i, j - 1))
+				add_to_array(Vector2(i, j    ))
+				add_to_array(Vector2(i, j + 1))
+
 	get_bombed_pieces()
-	destroy_timer.start()	
+	destroy_timer.start()
 
 func get_bombed_pieces():
 	for i in width:
 		for j in height:
-			if (all_pieces[i][j] != null
-			and all_pieces[i][j].matched):
+			if all_pieces[i][j] != null and all_pieces[i][j].matched:
 				if all_pieces[i][j].is_column:
 					match_all_column(i)
 				elif all_pieces[i][j].is_row:
@@ -301,23 +325,28 @@ func get_bombed_pieces():
 				elif all_pieces[i][j].is_adjacent:
 					match_all_adjecent(i, j)
 
-
 func add_to_array(value, array_to_add = current_matches):
-	if !array_to_add.has(value):
+	if not array_to_add.has(value):
 		array_to_add.append(value)
-	
+
 func _mark_matched(i, j):
 	if all_pieces[i][j] != null and not all_pieces[i][j].matched:
 		all_pieces[i][j].matched = true
 		all_pieces[i][j].dim()
 
+# ─────────────────────────────────────────────────────────────────────
+# SPECIALS
+# ─────────────────────────────────────────────────────────────────────
 func find_specials():
 	for i in current_matches.size():
-		var current_columm = current_matches[i].x
-		var current_row = current_matches[i].y
-		var current_color = all_pieces[current_columm][current_row].color
+		var current_column = current_matches[i].x
+		var current_row    = current_matches[i].y
+		if all_pieces[current_column][current_row] == null:
+			continue
+		var current_color = all_pieces[current_column][current_row].color
 		var col_matched = 0
 		var row_matched = 0
+
 		for j in current_matches.size():
 			var this_column = current_matches[j].x
 			var this_row = current_matches[j].y
@@ -338,34 +367,87 @@ func find_specials():
 		elif col_matched == 4:
 			make_specials(1, current_color)
 			return
-		elif row_matched == 4: 
+		elif row_matched == 4:
 			make_specials(2, current_color)
 			return
-		
+
+func make_specials(type, color):
+	for i in current_matches.size():
+		var current_column = current_matches[i].x
+		var current_row    = current_matches[i].y
+		if all_pieces[current_column][current_row] == piece_one and piece_one != null and piece_one.color == color:
+			piece_one.matched = false
+			change_to_special(type, piece_one)
+		elif all_pieces[current_column][current_row] == piece_two and piece_two != null and piece_two.color == color:
+			change_to_special(type, piece_two)
+
+func change_to_special(type, piece):
+	if   type == 0: piece.make_adjacent()
+	elif type == 1: piece.make_row()
+	elif type == 2: piece.make_column()
+
+func match_all_column(column):
+	for i in height:
+		if all_pieces[column][i] != null:
+			if all_pieces[column][i].is_row:
+				match_all_row(i)
+			if all_pieces[column][i].is_adjacent:
+				match_all_adjecent(column, i)
+			all_pieces[column][i].matched = true
+
+func match_all_row(row):
+	for j in width:
+		if all_pieces[j][row] != null:
+			if all_pieces[j][row].is_column:
+				match_all_column(j)
+			if all_pieces[j][row].is_adjacent:
+				match_all_adjecent(j, row)
+			all_pieces[j][row].matched = true
+
+func match_all_adjecent(column, row):
+	for i in range(-1, 2):
+		for j in range(-1, 2):
+			var ci = column + i
+			var rj = row + j
+			if in_grid(ci, rj) and all_pieces[ci][rj] != null:
+				if all_pieces[ci][rj].is_column:
+					match_all_column(ci)
+				elif all_pieces[ci][rj].is_row:
+					match_all_row(rj)
+				all_pieces[ci][rj].matched = true
+
+# ─────────────────────────────────────────────────────────────────────
+# DESTROY
+# ─────────────────────────────────────────────────────────────────────
 func destroy_matched():
 	find_specials()
-	var was_matched = false
-	var pieces_destroyed = 0
-	#print(current_matches)
+	var was_matched       = false
+	var pieces_destroyed  = 0
+
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] != null and all_pieces[i][j].matched:
-				was_matched = true
+				was_matched       = true
 				pieces_destroyed += 1
 
 				# Recolección por color objetivo
 				if level_config != null and level_config.objetivo_tipo == LevelConfig.Objetivo.RECOLECTAR_COLOR:
 					if all_pieces[i][j].color == level_config.objetivo_color:
 						collected += 1
+						emit_signal("objetivo_actualizado", collected, level_config.objetivo_valor)
 
 				all_pieces[i][j].queue_free()
 				all_pieces[i][j] = null
+
 	current_matches.clear()
 
 	if pieces_destroyed > 0:
 		_add_score(pieces_destroyed)
+		if pieces_destroyed >= 4:
+			play_big_match_sound()
 
 	move_checked = true
+
 	if was_matched:
 		# Consumir movimiento solo cuando hubo combinación real
 		_use_move()
@@ -373,18 +455,13 @@ func destroy_matched():
 	else:
 		swap_back()
 
-func _add_score(pieces: int):
-	# 50 puntos base × cantidad de piezas, con bonus si hay más de 3
-	var bonus = 1 + max(0, pieces - 3) * 0.5
-	current_score += int(50 * pieces * bonus)
-	emit_signal("score_changed", current_score)
-	_check_win()
-	
+# ─────────────────────────────────────────────────────────────────────
+# COLLAPSE / REFILL
+# ─────────────────────────────────────────────────────────────────────
 func collapse_columns():
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] == null:
-				# look above
 				for k in range(j + 1, height):
 					if all_pieces[i][k] != null:
 						all_pieces[i][k].move(grid_to_pixel(i, j))
@@ -394,27 +471,21 @@ func collapse_columns():
 	refill_timer.start()
 
 func refill_columns():
-	
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] == null:
-				# random number
-				var rand = randi_range(0, possible_pieces.size() - 1)
-				# instance 
-				var piece = possible_pieces[rand].instantiate()
-				# repeat until no matches
+				var rand   = randi_range(0, possible_pieces.size() - 1)
+				var piece  = possible_pieces[rand].instantiate()
 				var max_loops = 100
-				var loops = 0
-				while (match_at(i, j, piece.color) and loops < max_loops):
-					rand = randi_range(0, possible_pieces.size() - 1)
+				var loops     = 0
+				while match_at(i, j, piece.color) and loops < max_loops:
+					rand  = randi_range(0, possible_pieces.size() - 1)
 					loops += 1
 					piece = possible_pieces[rand].instantiate()
 				add_child(piece)
-				piece.position = grid_to_pixel(i, j - y_offset)
+				piece.position   = grid_to_pixel(i, j - y_offset)
 				piece.move(grid_to_pixel(i, j))
-				# fill array with pieces
 				all_pieces[i][j] = piece
-				
 	check_after_refill()
 
 func check_after_refill():
@@ -424,71 +495,44 @@ func check_after_refill():
 				find_matches()
 				destroy_timer.start()
 				return
-	# El tablero quedó estable: no hay más combinaciones en cascada.
-	# TODO (PARCIAL · M1): verifica si se cumplió o falló el objetivo del nivel
-	# (puntaje meta, piezas recolectadas, etc.) y dispara victoria o derrota.
-	# TODO (PARCIAL · M2): comprueba si todavía existe alguna jugada válida; si no,
-	# rebaraja el tablero hasta que haya al menos una.
-	state = MOVE
+
+	# Tablero estable
+	_check_win()
+	if game_active and not hay_jugadas_validas():
+		rebarajar()
+	state        = MOVE
 	move_checked = false
 
-func _on_destroy_timer_timeout():
-	destroy_matched()
+# ─────────────────────────────────────────────────────────────────────
+# SCORE
+# ─────────────────────────────────────────────────────────────────────
+func _add_score(pieces: int):
+	var bonus = 1 + max(0, pieces - 3) * 0.5
+	current_score += int(50 * pieces * bonus)
+	emit_signal("score_changed", current_score)
 
-func _on_collapse_timer_timeout():
-	collapse_columns()
+	# Actualizar progreso de objetivo de puntaje
+	if level_config != null and level_config.objetivo_tipo == LevelConfig.Objetivo.PUNTAJE:
+		emit_signal("objetivo_actualizado", current_score, level_config.objetivo_valor)
 
-func _on_refill_timer_timeout():
-	refill_columns()
-	
-func _check_win():
-	if not game_active or level_config == null:
-		return
+	_check_win()
 
-	var gano = false
-
-	match level_config.objetivo_tipo:
-		LevelConfig.Objetivo.PUNTAJE:
-			if current_score >= level_config.objetivo_valor:
-				gano = true
-		LevelConfig.Objetivo.RECOLECTAR_COLOR:
-			if collected >= level_config.objetivo_valor:
-				gano = true
-
-	if gano:
-		game_active = false
-		emit_signal("game_finished", true)
-		game_over_screen(true)
-
-func game_over():
-	if not game_active:
-		return
-	game_active = false
-	state       = WAIT
-	countdown_timer.stop()
-	emit_signal("game_finished", false)
-	game_over_screen(false)
-
-func game_over_screen(gano: bool):
-	# Busca el nodo GameOverScreen en el árbol y muéstrale el resultado.
-	# Ajusta la ruta según tu escena.
-	var screen = get_tree().get_first_node_in_group("game_over_screen")
-	if screen:
-		screen.show_result(gano, current_score)
-
+# ─────────────────────────────────────────────────────────────────────
+# MOVES / TIMER
+# ─────────────────────────────────────────────────────────────────────
 func _use_move():
+	# Si el nivel usa tiempo en vez de movimientos, no descontar
+	if level_config != null and level_config.limite_segundos > 0:
+		return
+
 	if level_config == null or level_config.limite_movimientos == 0:
 		return   # sin límite de movimientos
-
-	# Solo descuenta movimientos si NO es un nivel de solo tiempo
-	if level_config.limite_segundos > 0 and level_config.limite_movimientos == 0:
-		return
 
 	moves_left -= 1
 	emit_signal("counter_changed", moves_left)
 
 	if moves_left <= 0:
-		_check_win()   # puede ganar por puntos o recolección; si no, derrota
+		_check_win()
 		if game_active:
 			game_over()
 
@@ -502,8 +546,54 @@ func _on_countdown_timer_timeout():
 		if game_active:
 			game_over()
 
+# ─────────────────────────────────────────────────────────────────────
+# WIN / LOSE
+# ─────────────────────────────────────────────────────────────────────
+func _check_win():
+	if not game_active or level_config == null:
+		return
+
+	var gano = false
+	match level_config.objetivo_tipo:
+		LevelConfig.Objetivo.PUNTAJE:
+			if current_score >= level_config.objetivo_valor:
+				gano = true
+		LevelConfig.Objetivo.RECOLECTAR_COLOR:
+			if collected >= level_config.objetivo_valor:
+				gano = true
+
+	if gano:
+		game_active = false
+		countdown_timer.stop()
+		_guardar_progreso(nivel_actual_idx + 1)
+		emit_signal("game_finished", true)
+		_mostrar_game_over_screen(true)
+		
+func _mostrar_game_over_screen(gano: bool):
+	print("Buscando game_over_screen...")
+	var screen = get_tree().get_first_node_in_group("game_over_screen")
+	print("Screen encontrado: ", screen)
+	if screen:
+		print("Llamando show_result con gano=", gano)
+		screen.show_result(gano, current_score)
+	else:
+		push_warning("grid.gd: no se encontró ningún nodo en el grupo 'game_over_screen'.")
+
+func game_over():
+	if not game_active:
+		return
+	game_active = false
+	state       = WAIT
+	countdown_timer.stop()
+	_guardar_record()
+	emit_signal("game_finished", true)
+	_mostrar_game_over_screen(false)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# JUGADAS VÁLIDAS / REBARAJE
+# ─────────────────────────────────────────────────────────────────────
 func hay_jugadas_validas() -> bool:
-	# Prueba todos los posibles intercambios horizontales y verticales
 	var directions = [Vector2(1, 0), Vector2(0, 1)]
 	for i in width:
 		for j in height:
@@ -514,20 +604,19 @@ func hay_jugadas_validas() -> bool:
 					continue
 				if all_pieces[i][j] == null or all_pieces[ni][nj] == null:
 					continue
-
 				# Intercambio temporal
-				var tmp = all_pieces[i][j]
+				var tmp            = all_pieces[i][j]
 				all_pieces[i][j]   = all_pieces[ni][nj]
 				all_pieces[ni][nj] = tmp
 
-				var genera_match = _simulacion_genera_match(i, j) or _simulacion_genera_match(ni, nj)
+				var genera = _simulacion_genera_match(i, j) or _simulacion_genera_match(ni, nj)
 
 				# Revertir
 				tmp                = all_pieces[i][j]
 				all_pieces[i][j]   = all_pieces[ni][nj]
 				all_pieces[ni][nj] = tmp
 
-				if genera_match:
+				if genera:
 					return true
 	return false
 
@@ -536,7 +625,6 @@ func _simulacion_genera_match(i, j) -> bool:
 		return false
 	var c = all_pieces[i][j].color
 
-	# Horizontal
 	var h = 1
 	var k = i - 1
 	while k >= 0 and all_pieces[k][j] != null and all_pieces[k][j].color == c:
@@ -546,7 +634,6 @@ func _simulacion_genera_match(i, j) -> bool:
 		h += 1; k += 1
 	if h >= 3: return true
 
-	# Vertical
 	var v = 1
 	k = j - 1
 	while k >= 0 and all_pieces[i][k] != null and all_pieces[i][k].color == c:
@@ -559,7 +646,6 @@ func _simulacion_genera_match(i, j) -> bool:
 	return false
 
 func rebarajar():
-	# Recoge todas las piezas, las mezcla y las redistribuye sin matches
 	var piezas_planas = []
 	for i in width:
 		for j in height:
@@ -575,7 +661,6 @@ func rebarajar():
 				all_pieces[i][j].move(grid_to_pixel(i, j))
 				idx += 1
 
-	# Si el rebaraje volvió a bloquear, intenta otra vez (máx 10 veces)
 	var intentos = 0
 	while not hay_jugadas_validas() and intentos < 10:
 		piezas_planas.shuffle()
@@ -658,3 +743,69 @@ func clear_board():
 			if all_pieces[i][j] != null:
 				_mark_matched(i, j)
 				add_to_array(Vector2(i,j))
+
+# ─────────────────────────────────────────────────────────────────────
+# SONIDOS (nodos hijos de la escena raíz)
+# ─────────────────────────────────────────────────────────────────────
+func play_invalid_move_sound():
+	var node = get_node_or_null("../InvalidMoveSound")
+	if node: node.play()
+
+func play_swap_sound():
+	var node = get_node_or_null("../SwapSound")
+	if node: node.play()
+
+func play_big_match_sound():
+	var node = get_node_or_null("../BigMatchSound")
+	if node: node.play()
+
+# ─────────────────────────────────────────────────────────────────────
+# TIMER CALLBACKS
+# ─────────────────────────────────────────────────────────────────────
+func _on_destroy_timer_timeout():
+	destroy_matched()
+
+func _on_collapse_timer_timeout():
+	collapse_columns()
+
+func _on_refill_timer_timeout():
+	refill_columns()
+
+# ─────────────────────────────────────────────────────────────────────
+# PERSISTENCIA
+# ─────────────────────────────────────────────────────────────────────
+const RUTA_GUARDADO = "user://save.json"
+
+func _leer_datos_guardados() -> Dictionary:
+	if not FileAccess.file_exists(RUTA_GUARDADO):
+		return {"record_puntaje": 0, "nivel_actual_idx": 0}
+	var file = FileAccess.open(RUTA_GUARDADO, FileAccess.READ)
+	if file == null:
+		return {"record_puntaje": 0, "nivel_actual_idx": 0}
+	var resultado = JSON.parse_string(file.get_as_text())
+	file.close()
+	if resultado == null or not resultado is Dictionary:
+		return {"record_puntaje": 0, "nivel_actual_idx": 0}
+	return {"record_puntaje": 0, "nivel_actual_idx": 0}
+
+func _guardar_record() -> void:
+	var datos = _leer_datos_guardados()
+	if current_score > datos.get("record_puntaje", 0):
+		datos["record_puntaje"] = current_score
+	var file = FileAccess.open(RUTA_GUARDADO, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(datos))
+		file.close()
+
+func _guardar_progreso(siguiente_idx: int) -> void:
+	var datos = _leer_datos_guardados()
+	datos["nivel_actual_idx"] = siguiente_idx
+	if current_score > datos.get("record_puntaje", 0):
+		datos["record_puntaje"] = current_score
+	var file = FileAccess.open(RUTA_GUARDADO, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(datos))
+		file.close()
+
+func get_record() -> int:
+	return _leer_datos_guardados().get("record_puntaje", 0)
