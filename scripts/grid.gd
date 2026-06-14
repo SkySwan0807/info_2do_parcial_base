@@ -23,9 +23,9 @@ var possible_pieces = [
 	preload("res://scenes/blue_piece.tscn"),
 	preload("res://scenes/green_piece.tscn"),
 	preload("res://scenes/light_green_piece.tscn"),
-	#preload("res://scenes/pink_piece.tscn"),
-	#preload("res://scenes/yellow_piece.tscn"),
-	#preload("res://scenes/orange_piece.tscn"),
+	preload("res://scenes/pink_piece.tscn"),
+	preload("res://scenes/yellow_piece.tscn"),
+	preload("res://scenes/orange_piece.tscn"),
 ]
 
 var all_possible_pieces = []
@@ -350,8 +350,8 @@ func find_specials():
 		for j in current_matches.size():
 			var this_column = current_matches[j].x
 			var this_row = current_matches[j].y
-			var this_color = all_pieces[current_columm][current_row].color
-			if (this_column== current_columm 
+			var this_color = all_pieces[current_column][current_row].color
+			if (this_column == current_column 
 				and
 				this_color == current_color):
 					col_matched += 1
@@ -370,51 +370,6 @@ func find_specials():
 		elif row_matched == 4:
 			make_specials(2, current_color)
 			return
-
-func make_specials(type, color):
-	for i in current_matches.size():
-		var current_column = current_matches[i].x
-		var current_row    = current_matches[i].y
-		if all_pieces[current_column][current_row] == piece_one and piece_one != null and piece_one.color == color:
-			piece_one.matched = false
-			change_to_special(type, piece_one)
-		elif all_pieces[current_column][current_row] == piece_two and piece_two != null and piece_two.color == color:
-			change_to_special(type, piece_two)
-
-func change_to_special(type, piece):
-	if   type == 0: piece.make_adjacent()
-	elif type == 1: piece.make_row()
-	elif type == 2: piece.make_column()
-
-func match_all_column(column):
-	for i in height:
-		if all_pieces[column][i] != null:
-			if all_pieces[column][i].is_row:
-				match_all_row(i)
-			if all_pieces[column][i].is_adjacent:
-				match_all_adjecent(column, i)
-			all_pieces[column][i].matched = true
-
-func match_all_row(row):
-	for j in width:
-		if all_pieces[j][row] != null:
-			if all_pieces[j][row].is_column:
-				match_all_column(j)
-			if all_pieces[j][row].is_adjacent:
-				match_all_adjecent(j, row)
-			all_pieces[j][row].matched = true
-
-func match_all_adjecent(column, row):
-	for i in range(-1, 2):
-		for j in range(-1, 2):
-			var ci = column + i
-			var rj = row + j
-			if in_grid(ci, rj) and all_pieces[ci][rj] != null:
-				if all_pieces[ci][rj].is_column:
-					match_all_column(ci)
-				elif all_pieces[ci][rj].is_row:
-					match_all_row(rj)
-				all_pieces[ci][rj].matched = true
 
 # ─────────────────────────────────────────────────────────────────────
 # DESTROY
