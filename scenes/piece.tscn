@@ -1,9 +1,11 @@
 [gd_scene format=3 uid="uid://dimhfx4c1igfv"]
 
 [ext_resource type="Script" uid="uid://bgko3xthbsvt6" path="res://scripts/piece.gd" id="1_vm0sw"]
+[ext_resource type="Texture2D" uid="uid://dc6jph2f4xlum" path="res://assets/pieces/Rainbow.png" id="2_s58gp"]
 
 [node name="Piece" type="Node2D" unique_id=977679296]
 scale = Vector2(0.5, 0.5)
 script = ExtResource("1_vm0sw")
+rainbow_texture = ExtResource("2_s58gp")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=877362974]

@@ -4,12 +4,14 @@ extends Node2D
 @export var row_texture: Texture
 @export var column_texture: Texture
 @export var adjacent_texture: Texture
+@export var rainbow_texture: Texture
 
 var matched = false
 
 var is_column = false
 var is_row = false
 var is_adjacent = false
+var is_rainbow = false
 
 # TODO (PARCIAL · M3): para las piezas especiales podrías guardar aquí su tipo
 # (por ejemplo, "fila", "columna" o "bomba") y exponer un método que dispare su
@@ -42,4 +44,8 @@ func make_adjacent():
 	$Sprite2D.texture = adjacent_texture
 	undim()
 
-	
+func make_rainbow():
+	is_rainbow = true
+	$Sprite2D.texture = rainbow_texture
+	color = "rainbow"
+	undim()

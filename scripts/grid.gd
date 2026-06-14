@@ -20,9 +20,9 @@ var possible_pieces = [
 	preload("res://scenes/blue_piece.tscn"),
 	preload("res://scenes/green_piece.tscn"),
 	preload("res://scenes/light_green_piece.tscn"),
-	preload("res://scenes/pink_piece.tscn"),
-	preload("res://scenes/yellow_piece.tscn"),
-	preload("res://scenes/orange_piece.tscn"),
+	#preload("res://scenes/pink_piece.tscn"),
+	#preload("res://scenes/yellow_piece.tscn"),
+	#preload("res://scenes/orange_piece.tscn"),
 ]
 # current pieces in scene
 var all_pieces = []
@@ -150,6 +150,11 @@ func spawn_pieces():
 			# fill array with pieces
 			all_pieces[i][j] = piece
 
+func is_rainbow(piece_one, piece_two):
+	if piece_one.color == "rainbow" or piece_two.color == "rainbow":
+		return true
+	return false
+
 func match_at(i, j, color):
 	# check left
 	if i > 1:
@@ -182,6 +187,19 @@ func swap_pieces(column, row, direction: Vector2):
 	if first_piece == null or other_piece == null:
 		return
 	# swap
+	if is_rainbow(first_piece, other_piece):
+		if first_piece.color == "rainbow" and other_piece.color == "rainbow":
+			clear_board()
+			_mark_matched(column, row)
+			_mark_matched(column + direction.x, row + direction.y)
+		elif first_piece.color == "rainbow" and other_piece.color != "rainbow":
+			match_color(other_piece.color)
+			_mark_matched(column, row)
+			add_to_array(Vector2(column, row))
+		elif other_piece.color == "rainbow" and first_piece.color != "rainbow":
+			match_color(first_piece.color)
+			_mark_matched(column + direction.x, row + direction.y)
+			add_to_array(Vector2(column + direction.x, row + direction.y))
 	state = WAIT
 	store_info(first_piece, other_piece, Vector2(column, row), direction)
 	all_pieces[column][row] = other_piece
@@ -311,7 +329,7 @@ func find_specials():
 				this_color == current_color):
 					row_matched += 1
 		if col_matched == 5 or row_matched == 5:
-			print("rainbow")
+			make_specials(3, current_color)
 		elif col_matched >= 3 and row_matched >= 3:
 			make_specials(0, current_color)
 			return
@@ -585,6 +603,8 @@ func change_to_special(type, piece):
 		piece.make_row()
 	elif type == 2:
 		piece.make_column()
+	elif type == 3:
+		piece.make_rainbow()
 
 func match_all_column(column):
 	for i in height:
@@ -593,7 +613,8 @@ func match_all_column(column):
 				match_all_row(i)
 			if all_pieces[column][i].is_adjacent:
 				match_all_adjecent(column, i)
-			all_pieces[column][i].matched = true
+			_mark_matched(column, i)
+			add_to_array(Vector2(column, i))
 
 func match_all_row(row):
 	for j in width:
@@ -602,7 +623,8 @@ func match_all_row(row):
 				match_all_column(j)
 			if all_pieces[j][row].is_adjacent:
 				match_all_adjecent(j, row)
-			all_pieces[j][row].matched = true
+			_mark_matched(j, row)
+			add_to_array(Vector2(j, row))
 
 func is_in_grid(grid_position):
 	if(grid_position.x >= 0 and grid_position.x < width):
@@ -619,4 +641,18 @@ func match_all_adjecent(column, row):
 					match_all_column(i)
 				if all_pieces[i][j].is_column:
 					match_all_column(j)
-				all_pieces[column + i][row + j].matched = true
+				_mark_matched(column + i, row + j)
+
+func match_color(color):
+	for i in width:
+		for j in height:
+			if all_pieces[i][j] != null and all_pieces[i][j].color == color:
+				_mark_matched(i, j)
+				add_to_array(Vector2(i,j))
+				
+func clear_board():
+	for i in width:
+		for j in height:
+			if all_pieces[i][j] != null:
+				_mark_matched(i, j)
+				add_to_array(Vector2(i,j))
